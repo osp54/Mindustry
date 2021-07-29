@@ -448,11 +448,11 @@ public class SettingsMenuDialog extends Dialog{
             }
         }
 
+        graphics.checkPref("skipcoreanimation", false);
+
         if(!mobile){
             Core.settings.put("swapdiagonal", false);
         }
-
-        graphics.checkPref("flow", true);
     }
 
     public void exportData(Fi file) throws IOException{
