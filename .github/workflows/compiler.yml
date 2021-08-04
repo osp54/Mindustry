@@ -38,7 +38,7 @@ jobs:
         echo '::set-output name=RELEASE_TAG::'$tag     # Set the environment variable
         # Get the artifact path
         echo '::set-output name=ARTIFACT_PATH::'$(./gradlew getArtifactPath -q)
-      - name: Upload artifacts
+    - name: Upload artifacts
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
