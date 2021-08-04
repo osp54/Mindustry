@@ -29,9 +29,8 @@ jobs:
       run: ./gradlew desktop:dist -Pbuildversion=128.1 -PverionType=release --stacktrace
     - name: пакинг минды в андроид
       run: ./gradlew android:assembleDebug -Pbuildversion=128.1 -PverionType=release --stacktrace
-      - name: Set up the release
-        id: release
-      name: release
+    - name: Set up the release
+      id: release
       run: |
         tag=$(cat version.json | grep "version*")       # Cut the line with the version in plugin.json
         tag=$(echo $tag | cut -d ":" -f 2,3)           # Split with ":" and take the version number
