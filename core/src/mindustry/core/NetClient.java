@@ -164,14 +164,14 @@ public class NetClient implements ApplicationListener{
     public static void sound(Sound sound, float volume, float pitch, float pan){
         if(sound == null) return;
 
-        sound.play(volume * Core.settings.getInt("sfxvol") / 100f, pitch, pan);
+        sound.play(Mathf.clamp(volume, 0, 4f) * Core.settings.getInt("sfxvol") / 100f, pitch, pan);
     }
 
     @Remote(variants = Variant.both, unreliable = true)
     public static void soundAt(Sound sound, float x, float y, float volume, float pitch){
         if(sound == null) return;
 
-        sound.at(x, y, pitch, volume);
+        sound.at(x, y, pitch, Mathf.clamp(volume, 0, 4f));
     }
 
     @Remote(variants = Variant.both, unreliable = true)
@@ -217,6 +217,8 @@ public class NetClient implements ApplicationListener{
         if(message.length() > maxTextLength){
             throw new ValidateException(player, "Player has sent a message above the text limit.");
         }
+
+        message = message.replace("\n", "");
 
         Events.fire(new PlayerChatEvent(player, message));
 
@@ -505,6 +507,11 @@ public class NetClient implements ApplicationListener{
                 timeoutTime = 0f;
             }
         }
+    }
+
+    /** Resets the world data timeout counter. */
+    public void resetTimeout(){
+        timeoutTime = 0f;
     }
 
     public boolean isConnecting(){

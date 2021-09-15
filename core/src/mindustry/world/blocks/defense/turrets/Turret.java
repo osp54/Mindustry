@@ -16,6 +16,7 @@ import mindustry.core.*;
 import mindustry.entities.*;
 import mindustry.entities.Units.*;
 import mindustry.entities.bullet.*;
+import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
@@ -64,6 +65,7 @@ public class Turret extends ReloadTurret{
     public boolean accurateDelay = false;
     public boolean targetAir = true;
     public boolean targetGround = true;
+    public boolean targetHealing = false;
 
     //charging
     public float chargeTime = -1f;
@@ -271,6 +273,7 @@ public class Turret extends ReloadTurret{
             }
 
             if(hasAmmo()){
+                if(Float.isNaN(reload)) rotation = 0;
 
                 if(timer(timerTarget, targetInterval)){
                     findTarget();
@@ -287,9 +290,7 @@ public class Turret extends ReloadTurret{
                     }else{ //default AI behavior
                         targetPosition(target);
 
-                        if(Float.isNaN(rotation)){
-                            rotation = 0;
-                        }
+                        if(Float.isNaN(rotation)) rotation = 0;
                     }
 
                     float targetRot = angleTo(targetPos);
@@ -320,7 +321,11 @@ public class Turret extends ReloadTurret{
         }
 
         protected boolean validateTarget(){
-            return !Units.invalidateTarget(target, team, x, y) || isControlled() || logicControlled();
+            return !Units.invalidateTarget(target, canHeal() ? Team.derelict : team, x, y) || isControlled() || logicControlled();
+        }
+
+        protected boolean canHeal(){
+            return targetHealing && hasAmmo() && peekAmmo().collidesTeam && peekAmmo().healPercent > 0;
         }
 
         protected void findTarget(){
@@ -328,6 +333,10 @@ public class Turret extends ReloadTurret{
                 target = Units.bestEnemy(team, x, y, range, e -> !e.dead() && !e.isGrounded(), unitSort);
             }else{
                 target = Units.bestTarget(team, x, y, range, e -> !e.dead() && (e.isGrounded() || targetAir) && (!e.isGrounded() || targetGround), b -> true, unitSort);
+
+                if(target == null && canHeal()){
+                    target = Units.findAllyTile(team, x, y, range, b -> b.damaged() && b != this);
+                }
             }
         }
 

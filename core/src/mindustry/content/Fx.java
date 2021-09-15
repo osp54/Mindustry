@@ -32,7 +32,9 @@ public class Fx{
         //lifetime is how many frames it takes to fade out the trail
         e.lifetime = trail.length * 1.4f;
 
-        trail.shorten();
+        if(!state.isPaused()){
+            trail.shorten();
+        }
         trail.drawCap(e.color, e.rotation);
         trail.draw(e.color, e.rotation);
     }),
@@ -360,13 +362,13 @@ public class Fx{
 
         Fill.circle(e.x, e.y, e.fin() * 10);
         Drawf.light(e.x, e.y, e.fin() * 20f, Pal.heal, 0.7f);
-    }),
+    }).followParent(true),
 
     greenLaserChargeSmall = new Effect(40f, 100f, e -> {
         color(Pal.heal);
         stroke(e.fin() * 2f);
         Lines.circle(e.x, e.y, e.fout() * 50f);
-    }),
+    }).followParent(true),
 
     greenCloud = new Effect(80f, e -> {
         color(Pal.heal);
@@ -391,12 +393,6 @@ public class Fx{
         color(Pal.heal);
         stroke(e.fout() * 2f);
         Lines.circle(e.x, e.y, 2f + e.finpow() * 7f);
-    }),
-
-    healDenamic = new Effect(11, e -> {
-        color(Pal.heal);
-        stroke(e.fout() * 2f);
-        Lines.circle(e.x, e.y, 2f + e.finpow() * e.rotation);
     }),
 
     shieldWave = new Effect(22, e -> {
@@ -880,6 +876,16 @@ public class Fx{
         Drawf.light(Team.derelict, e.x, e.y, 20f * e.fslope(), Pal.lightFlame, 0.5f);
     }),
 
+    fireHit = new Effect(35f, e -> {
+        color(Pal.lightFlame, Pal.darkFlame, e.fin());
+
+        randLenVectors(e.id, 3, 2f + e.fin() * 10f, (x, y) -> {
+            Fill.circle(e.x + x, e.y + y, 0.2f + e.fout() * 1.6f);
+        });
+
+        color();
+    }),
+
     fireSmoke = new Effect(35f, e -> {
         color(Color.gray);
 
@@ -990,7 +996,9 @@ public class Fx{
         float length = 20f * e.finpow();
         float size = 7f * e.fout();
 
-        rect(((Item)e.data).fullIcon, e.x + trnsx(e.rotation, length), e.y + trnsy(e.rotation, length), size, size);
+        if(!(e.data instanceof Item item)) return;
+
+        rect(item.fullIcon, e.x + trnsx(e.rotation, length), e.y + trnsy(e.rotation, length), size, size);
     }),
 
     shockwave = new Effect(10f, 80f, e -> {
@@ -1877,7 +1885,7 @@ public class Fx{
         rand.setSeed(e.id);
         Tmp.v1.trns(e.rotation, e.finpow() * 90f * rand.random(0.2f, 1f));
         Fill.circle(e.x + Tmp.v1.x, e.y + Tmp.v1.y, 8f * rand.random(0.6f, 1f) * e.fout(0.2f));
-    }).layer(Layer.block + 1f),
+    }).layer(Layer.groundUnit + 1f),
 
     unitShieldBreak = new Effect(35, e -> {
         if(!(e.data instanceof Unitc)) return;

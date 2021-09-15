@@ -38,8 +38,8 @@ public class LaserTurret extends PowerTurret{
     }
 
     public class LaserTurretBuild extends PowerTurretBuild{
-        Bullet bullet;
-        float bulletLife;
+        public Bullet bullet;
+        public float bulletLife;
 
         @Override
         protected void updateCooling(){
@@ -90,7 +90,7 @@ public class LaserTurret extends PowerTurret{
                 return;
             }
 
-            if(reload <= 0 && (consValid() || cheating())){
+            if(reload <= 0 && (consValid() || cheating()) && !charging){
                 BulletType type = peekAmmo();
 
                 shoot(type);

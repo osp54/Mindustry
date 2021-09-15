@@ -42,6 +42,8 @@ public class UnitType extends UnlockableContent{
 
     /** If true, the unit is always at elevation 1. */
     public boolean flying;
+    /** If `flying` and this is true, the unit can appear on the title screen */
+    public boolean onTitleScreen = true;
     /** Creates a new instance of this unit class. */
     public Prov<? extends Unit> constructor;
     /** The default AI controller to assign on creation. */
@@ -75,6 +77,8 @@ public class UnitType extends UnlockableContent{
     public Effect fallEffect = Fx.fallSmoke;
     public Effect fallThrusterEffect = Fx.fallSmoke;
     public Effect deathExplosionEffect = Fx.dynamicExplosion;
+    /** Additional sprites that are drawn with the unit. */
+    public Seq<UnitDecal> decals = new Seq<>();
     public Seq<Ability> abilities = new Seq<>();
     /** Flags to target based on priority. Null indicates that the closest target should be found. The closest enemy core is used as a fallback. */
     public BlockFlag[] targetFlags = {null};
@@ -121,6 +125,7 @@ public class UnitType extends UnlockableContent{
     public boolean canHeal = false;
     /** If true, all weapons will attack the same target. */
     public boolean singleTarget = false;
+    public boolean forceMultiTarget = false;
 
     public ObjectSet<StatusEffect> immunities = new ObjectSet<>();
     public Sound deathSound = Sounds.bang;
@@ -233,6 +238,10 @@ public class UnitType extends UnlockableContent{
         return (envEnabled & env) != 0 && (envDisabled & env) == 0 && (envRequired == 0 || (envRequired & env) == envRequired);
     }
 
+    public boolean isBanned(){
+        return state.rules.bannedUnits.contains(this);
+    }
+
     @Override
     public void getDependencies(Cons<UnlockableContent> cons){
         //units require reconstructors being researched
@@ -308,6 +317,9 @@ public class UnitType extends UnlockableContent{
             canDrown = false;
             omniMovement = false;
             immunities.add(StatusEffects.wet);
+            if(visualElevation < 0f){
+                visualElevation = 0.11f;
+            }
         }
 
         if(lightRadius == -1){
@@ -315,10 +327,10 @@ public class UnitType extends UnlockableContent{
         }
 
         clipSize = Math.max(clipSize, lightRadius * 1.1f);
-        singleTarget = weapons.size <= 1;
+        singleTarget = weapons.size <= 1 && !forceMultiTarget;
 
         if(itemCapacity < 0){
-            itemCapacity = Math.max(Mathf.round((int)(hitSize * 4.3), 10), 10);
+            itemCapacity = Math.max(Mathf.round((int)(hitSize * 4f), 10), 10);
         }
 
         //assume slight range margin
@@ -436,7 +448,7 @@ public class UnitType extends UnlockableContent{
             if(!packer.has(name + "-outline")){
                 PixmapRegion base = Core.atlas.getPixmap(region);
                 var result = Pixmaps.outline(base, outlineColor, outlineRadius);
-                if(Core.settings.getBool("linear")){
+                if(Core.settings.getBool("linear", true)){
                     Pixmaps.bleed(result);
                 }
                 packer.add(PageType.main, name + "-outline", result);
@@ -558,14 +570,26 @@ public class UnitType extends UnlockableContent{
             unit.trns(-legOffset.x, -legOffset.y);
         }
 
+        if(decals.size > 0){
+            float base = unit.rotation - 90;
+            for(var d : decals){
+                Draw.z(d.layer);
+                Draw.scl(d.xScale, d.yScale);
+                Draw.color(d.color);
+                Draw.rect(d.region, unit.x + Angles.trnsx(base, d.x, d.y), unit.y + Angles.trnsy(base, d.x, d.y), base + d.rotation);
+            }
+            Draw.reset();
+            Draw.z(z);
+        }
+
         if(unit.abilities.size > 0){
             for(Ability a : unit.abilities){
                 Draw.reset();
                 a.draw(unit);
             }
-
-            Draw.reset();
         }
+
+        Draw.reset();
     }
 
     public <T extends Unit & Payloadc> void drawPayload(T unit){
@@ -586,7 +610,7 @@ public class UnitType extends UnlockableContent{
     }
 
     public void drawControl(Unit unit){
-        Draw.z(Layer.groundUnit - 2);
+        Draw.z(unit.isFlying() ? Layer.flyingUnitLow : Layer.groundUnit - 2);
 
         Draw.color(Pal.accent, Color.white, Mathf.absin(4f, 0.3f));
         Lines.poly(unit.x, unit.y, 4, unit.hitSize + 1.5f);
@@ -605,7 +629,7 @@ public class UnitType extends UnlockableContent{
         Draw.color(0, 0, 0, 0.4f);
         float rad = 1.6f;
         float size = Math.max(region.width, region.height) * Draw.scl;
-        Draw.rect(softShadowRegion, unit, size * rad * Draw.xscl, size * rad * Draw.yscl);
+        Draw.rect(softShadowRegion, unit, size * rad * Draw.xscl, size * rad * Draw.yscl, unit.rotation - 90);
         Draw.color();
     }
 
@@ -842,4 +866,5 @@ public class UnitType extends UnlockableContent{
     }
 
     //endregion
+
 }

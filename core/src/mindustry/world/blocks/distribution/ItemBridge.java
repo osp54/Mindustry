@@ -51,6 +51,8 @@ public class ItemBridge extends Block{
         group = BlockGroup.transportation;
         noUpdateDisabled = true;
         copyConfig = false;
+        //disabled as to not be annoying
+        allowConfigInventory = false;
 
         //point2 config is relative
         config(Point2.class, (ItemBridgeBuild tile, Point2 i) -> tile.link = Point2.pack(i.x + tile.tileX(), i.y + tile.tileY()));
@@ -178,7 +180,7 @@ public class ItemBridge extends Block{
         public int link = -1;
         public IntSeq incoming = new IntSeq(false, 4);
         public float warmup;
-        public float time = 10f, timeSpeed;
+        public float time = -8f, timeSpeed;
         public boolean wasMoved, moved;
         public float transportCounter;
 

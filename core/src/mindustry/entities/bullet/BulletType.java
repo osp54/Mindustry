@@ -343,25 +343,10 @@ public class BulletType extends Content implements Cloneable{
         if(instantDisappear){
             b.time = lifetime;
         }
-
-        if(fragBullet != null || splashDamageRadius > 0 || lightning > 0){
-            despawnHit = true;
-        }
-
-        if(lightRadius == -1){
-            lightRadius = Math.max(18, hitSize * 5f);
-        }
-        drawSize = Math.max(drawSize, trailLength * speed * 2f);
     }
 
     public void update(Bullet b){
-        if(!headless && trailLength > 0){
-            if(b.trail == null){
-                b.trail = new Trail(trailLength);
-            }
-            b.trail.length = trailLength;
-            b.trail.update(b.x, b.y, trailInterp.apply(b.fin()));
-        }
+        updateTrail(b);
 
         if(homingPower > 0.0001f && b.time >= homingDelay){
             Teamc target;
@@ -395,6 +380,16 @@ public class BulletType extends Content implements Cloneable{
             }
         }
     }
+    
+    public void updateTrail(Bullet b){
+        if(!headless && trailLength > 0){
+            if(b.trail == null){
+                b.trail = new Trail(trailLength);
+            }
+            b.trail.length = trailLength;
+            b.trail.update(b.x, b.y, trailInterp.apply(b.fin()));
+        }
+    }
 
     @Override
     public void init(){
@@ -412,6 +407,15 @@ public class BulletType extends Content implements Cloneable{
         if(lightningType == null){
             lightningType = !collidesAir ? Bullets.damageLightningGround : Bullets.damageLightning;
         }
+
+        if(fragBullet != null || splashDamageRadius > 0 || lightning > 0){
+            despawnHit = true;
+        }
+
+        if(lightRadius == -1){
+            lightRadius = Math.max(18, hitSize * 5f);
+        }
+        drawSize = Math.max(drawSize, trailLength * speed * 2f);
     }
 
     @Override

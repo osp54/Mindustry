@@ -78,6 +78,8 @@ public class SectorInfo{
     public int waveVersion = -1;
     /** Whether this sector was indicated to the player or not. */
     public boolean shown = false;
+    /** Temporary seq for last imported items. Do not use. */
+    public transient ItemSeq lastImported = new ItemSeq();
 
     /** Special variables for simulation. */
     public float sumHealth, sumRps, sumDps, waveHealthBase, waveHealthSlope, waveDpsBase, waveDpsSlope, bossHealth, bossDps, curEnemyHealth, curEnemyDps;
@@ -286,7 +288,7 @@ public class SectorInfo{
     public void eachImport(Planet planet, Cons<Sector> cons){
         for(Sector sector : planet.sectors){
             Sector dest = sector.info.getRealDestination();
-            if(sector.hasBase() && sector.info != this && dest != null && dest.info == this){
+            if(sector.hasBase() && sector.info != this && dest != null && dest.info == this && sector.info.anyExports()){
                 cons.get(sector);
             }
         }

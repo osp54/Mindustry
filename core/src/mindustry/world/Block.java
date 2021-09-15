@@ -36,8 +36,11 @@ import java.util.*;
 import static mindustry.Vars.*;
 
 public class Block extends UnlockableContent{
+    /** If true, buildings have an ItemModule. */
     public boolean hasItems;
+    /** If true, buildings have a LiquidModule. */
     public boolean hasLiquids;
+    /** If true, buildings have a PowerModule. */
     public boolean hasPower;
 
     public boolean outputsLiquid = false;
@@ -45,8 +48,6 @@ public class Block extends UnlockableContent{
     public boolean outputsPower = false;
     public boolean outputsPayload = false;
     public boolean acceptsPayload = false;
-    public boolean outputFacing = true;
-    public boolean noSideBlend = false;
     public boolean acceptsItems = false;
 
     public int itemCapacity = 10;
@@ -56,6 +57,11 @@ public class Block extends UnlockableContent{
     public final BlockBars bars = new BlockBars();
     public final Consumers consumes = new Consumers();
 
+    /** If true, this block outputs to its facing direction, when applicable.
+     * Used for blending calculations. */
+    public boolean outputFacing = true;
+    /** if true, this block does not accept input from the sides (used for armored conveyors) */
+    public boolean noSideBlend = false;
     /** whether to display flow rate */
     public boolean displayFlow = true;
     /** whether this block is visible in the editor */
@@ -94,6 +100,8 @@ public class Block extends UnlockableContent{
     public boolean requiresWater = false;
     /** whether this block can be placed on any liquids, anywhere */
     public boolean placeableLiquid = false;
+    /** whether this block can be placed directly by the player via PlacementFragment */
+    public boolean placeablePlayer = true;
     /** whether this floor can be placed on. */
     public boolean placeableOn = true;
     /** whether this block has insulating properties. */
@@ -151,6 +159,8 @@ public class Block extends UnlockableContent{
     public int unitCapModifier = 0;
     /** Whether the block can be tapped and selected to configure. */
     public boolean configurable;
+    /** If true, the building inventory can be shown with the config. */
+    public boolean allowConfigInventory = true;
     /** If true, this block can be configured by logic. */
     public boolean logicConfigurable = false;
     /** Whether this block consumes touchDown events when tapped. */
@@ -394,7 +404,7 @@ public class Block extends UnlockableContent{
             stats.add(Stat.health, health, StatUnit.none);
         }
 
-        if(canBeBuilt()){
+        if(canBeBuilt() && requirements.length > 0){
             stats.add(Stat.buildTime, buildCost / 60, StatUnit.seconds);
             stats.add(Stat.buildCost, StatValues.items(false, requirements));
         }
@@ -430,7 +440,7 @@ public class Block extends UnlockableContent{
             boolean buffered = cons.buffered;
             float capacity = cons.capacity;
 
-            bars.add("power", entity -> new Bar(() -> buffered ? Core.bundle.format("bar.poweramount", Float.isNaN(entity.power.status * capacity) ? "<ERROR>" : (int)(entity.power.status * capacity)) :
+            bars.add("power", entity -> new Bar(() -> buffered ? Core.bundle.format("bar.poweramount", Float.isNaN(entity.power.status * capacity) ? "<ERROR>" : UI.formatAmount((int)(entity.power.status * capacity))) :
                 Core.bundle.get("bar.power"), () -> Pal.powerBar, () -> Mathf.zero(cons.requestedPower(entity)) && entity.power.graph.getPowerProduced() + entity.power.graph.getBatteryStored() > 0f ? 1f : entity.power.status));
         }
 
@@ -837,7 +847,12 @@ public class Block extends UnlockableContent{
         }
 
         if(!outputsPower && consumes.hasPower() && consumes.getPower().buffered){
-            throw new IllegalArgumentException("Consumer using buffered power: " + name);
+            Log.warn("Consumer using buffered power: @. Disabling buffered power.", name);
+            consumes.getPower().buffered = false;
+        }
+
+        if(buildVisibility == BuildVisibility.sandboxOnly){
+            hideDetails = false;
         }
     }
 
@@ -887,7 +902,7 @@ public class Block extends UnlockableContent{
         }
 
         //generate paletted team regions
-        if(teamRegion.found()){
+        if(teamRegion != null && teamRegion.found()){
             for(Team team : Team.all){
                 //if there's an override, don't generate anything
                 if(team.hasPalette && !Core.atlas.has(name + "-team-" + team.name)){
@@ -897,12 +912,17 @@ public class Block extends UnlockableContent{
                     for(int x = 0; x < base.width; x++){
                         for(int y = 0; y < base.height; y++){
                             int color = base.get(x, y);
-                            int index = color == 0xffffffff ? 0 : color == 0xdcc6c6ff ? 1 : color == 0x9d7f7fff ? 2 : -1;
+                            int index = switch(color){
+                                case 0xffffffff -> 0;
+                                case 0xdcc6c6ff, 0xdbc5c5ff -> 1;
+                                case 0x9d7f7fff, 0x9e8080ff -> 2;
+                                default -> -1;
+                            };
                             out.setRaw(x, y, index == -1 ? base.get(x, y) : team.palettei[index]);
                         }
                     }
 
-                    if(Core.settings.getBool("linear")){
+                    if(Core.settings.getBool("linear", true)){
                         Pixmaps.bleed(out);
                     }
 
@@ -923,7 +943,7 @@ public class Block extends UnlockableContent{
         if(outlineIcon){
             PixmapRegion region = Core.atlas.getPixmap(gen[outlinedIcon >= 0 ? outlinedIcon : gen.length -1]);
             Pixmap out = last = Pixmaps.outline(region, outlineColor, outlineRadius);
-            if(Core.settings.getBool("linear")){
+            if(Core.settings.getBool("linear", true)){
                 Pixmaps.bleed(out);
             }
             packer.add(PageType.main, name, out);
