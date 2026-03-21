@@ -36,7 +36,7 @@ import static mindustry.Vars.*;
 @SuppressWarnings("unused")
 @TypeIOHandler
 public class TypeIO{
-    private static final int maxArraySize = 1000, maxByteArraySize = 50_000;
+    private static final int maxArraySize = 1000, maxByteArraySize = 40_000;
 
     public static void writeObject(Writes write, Object object){
         if(object == null){
@@ -161,6 +161,21 @@ public class TypeIO{
     }
 
     public static @Nullable Object readObject(Reads read, boolean box, @Nullable ContentMapper mapper){
+        return readObject(read, box, mapper, false);
+    }
+
+    public static @Nullable Object readObjectSafe(Reads read){
+        return readObject(read, false, null, true);
+    }
+
+    public static @Nullable Object readObject(Reads read, boolean box, @Nullable ContentMapper mapper, boolean safe){
+        return readObject(read, box, mapper, safe, true);
+    }
+
+    public static @Nullable Object readObject(Reads read, boolean box, @Nullable ContentMapper mapper, boolean safe, boolean allowArrays){
+        //use a much lower array size limit for build plans
+        int maxArraySize = safe ? TypeIO.maxArraySize : 200;
+
         byte type = read.b();
         return switch(type){
             case 0 -> null;
@@ -170,6 +185,7 @@ public class TypeIO{
             case 4 -> readString(read);
             case 5 -> mapper == null ? content.getByID(ContentType.all[read.b()], read.s()) : mapper.get(ContentType.all[read.b()], read.s());
             case 6 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 short len = read.s();
                 if(len > maxArraySize) throw new RuntimeException("Invalid array size: " + len);
                 IntSeq arr = new IntSeq(len);
@@ -178,6 +194,7 @@ public class TypeIO{
             }
             case 7 -> new Point2(read.i(), read.i());
             case 8 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 int len = read.ub();
                 Point2[] out = new Point2[len];
                 for(int i = 0; i < len; i ++) out[i] = Point2.unpack(read.i());
@@ -189,6 +206,7 @@ public class TypeIO{
             case 12 -> !box ? world.build(read.i()) : new BuildingBox(read.i());
             case 13 -> LAccess.all[read.s()];
             case 14 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 int len = read.i();
                 if(len > maxByteArraySize) throw new RuntimeException("Invalid array size: " + len);
 
@@ -202,6 +220,7 @@ public class TypeIO{
                 yield null;
             }
             case 16 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 int len = read.i();
                 if(len > maxArraySize) throw new RuntimeException("Invalid array size: " + len);
 
@@ -211,6 +230,7 @@ public class TypeIO{
             }
             case 17 -> !box ? Groups.unit.getByID(read.i()) : new UnitBox(read.i());
             case 18 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 int len = read.s();
                 if(len > maxArraySize) throw new RuntimeException("Invalid array size: " + len);
 
@@ -222,11 +242,14 @@ public class TypeIO{
             case 20 -> Team.all[read.ub()];
             case 21 -> readInts(read);
             case 22 -> {
+                if(!allowArrays) throw new RuntimeException("Nested arrays are not allowed");
                 int len = read.i();
                 if(len > maxArraySize) throw new RuntimeException("Invalid array size: " + len);
 
                 Object[] objs = new Object[len];
-                for(int i = 0; i < len; i++) objs[i] = readObject(read, box, mapper);
+                for(int i = 0; i < len; i++){
+                    objs[i] = readObject(read, box, mapper, safe, false);
+                }
                 yield objs;
             }
             case 23 -> content.unitCommand(read.us());
@@ -466,6 +489,7 @@ public class TypeIO{
     public static Queue<BuildPlan> readPlansQueue(Reads read){
         int used = read.i();
         if(used == -1) return null;
+        if(used >= maxArraySize) throw new RuntimeException("Queue too long: "+ used);
         var out = new Queue<BuildPlan>();
         for(int i = 0; i < used; i++){
             out.add(readPlan(read));
@@ -500,7 +524,7 @@ public class TypeIO{
             short block = read.s();
             byte rotation = read.b();
             boolean hasConfig = read.b() == 1;
-            Object config = readObject(read);
+            Object config = readObjectSafe(read);
             current = new BuildPlan(Point2.x(position), Point2.y(position), rotation, content.block(block));
             //should always happen, but is kept for legacy reasons just in case
             if(hasConfig){
@@ -727,6 +751,8 @@ public class TypeIO{
 
     public static Rules readRules(Reads read){
         int length = read.i();
+        //this is only called clientside, but the byte limit is reasonable either way...
+        if(length > maxByteArraySize) throw new ArcRuntimeException("Rules too long");
         String string = new String(read.b(new byte[length]), charset);
         return JsonIO.read(Rules.class, string);
     }
@@ -753,6 +779,7 @@ public class TypeIO{
 
     public static ObjectiveMarker readObjectiveMarker(Reads read){
         int length = read.i();
+        if(length > maxByteArraySize) throw new ArcRuntimeException("Objective marker too long");
         String string = new String(read.b(new byte[length]), charset);
         return JsonIO.read(MapObjectives.ObjectiveMarker.class, string);
     }
